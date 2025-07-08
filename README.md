@@ -1,43 +1,26 @@
-# Home_Lab
+# AI-Powered Home Lab: Infrastructure & Automation Plan
 
-Welcome to the AI-Powered Home Lab project! This repository documents and manages a sophisticated, AI-enhanced home lab environment. The goal is to create a powerful, resilient, and fully automated IT administration system for home use.
+This repository contains the documentation, scripts, and configurations for building and managing a sophisticated, AI-enhanced home lab. The goal is to create a powerful, resilient, and automated infrastructure using Infrastructure as Code (IaaC) principles.
 
-## Quick Start
+## Project Documentation
 
-- **Project Vision:** Fully automated, AI-assisted home IT system.
-- **Key Features:** Robust backup, secure network, private AI search, Infrastructure as Code.
-- **Hardware:** Enterprise-grade servers (Cisco, HP), GPUs, NVMe storage.
-- **Software:** Proxmox VE, Ansible, Docker, SearxNG, OpenWebUI, Ollama, Kanboard.
+This project is organized into three core documents that outline the vision, architecture, and actionable steps.
 
-## Documentation
+* **[Current State (Production)](./docs/01_CURRENT_STATE.md):** Describes the entire homelab environment as it exists today.
+* **[Target State (Ideal Future)](./docs/02_TARGET_STATE.md):** Describes the ideal, re-architected end-state we are building towards.
+* **[Action Plan & Roadmap](./docs/03_ACTION_PLAN.md):** The detailed, step-by-step guide for migrating from the current state to the target state.
 
-- **[Full Documentation & Strategy](HOMELAB-DOCUMENTATION.md):**  
-  All planning details, technical implementation, configuration, and history.
+## Vision & Goals
 
-- **[Roadmap Template](docs/ROADMAP-template.md):**  
-  For tracking phased deployments.
-
-- **[Inventory Template](docs/INVENTORY-template.md):**  
-  For hardware/software asset management.
+* **Vision:** To create a resilient, self-healing, and AI-assisted home infrastructure that automates routine maintenance, enhances security, and provides a powerful platform for home services and experimentation.
+* **Core Principles:**
+    * **Infrastructure as Code (IaaC):** All configurations are stored as code in this Git repository.
+    * **Automation First:** Repetitive tasks will be automated using Ansible.
+    * **Security by Design:** The network will be segmented and hardened from the ground up.
+    * **Simplicity & Elegance:** Utilize free, open-source, and performant tools.
 
 ## Repository Structure
 
-```
-/Home_Lab
-  ├── README.md
-  ├── HOMELAB-DOCUMENTATION.md
-  ├── configs/                # Example configs, Ansible, Docker, etc.
-  ├── scripts/                # Automation and monitoring scripts
-  ├── docs/                   # Templates, diagrams, and reference material
-  ├── diagrams/               # Architecture images or ASCII diagrams
-```
-
-## How to Contribute
-
-1. Review the [documentation](HOMELAB-DOCUMENTATION.md).
-2. Submit issues or pull requests for improvements.
-3. Use the templates in `/docs` to propose new phases or inventory changes.
-
----
-
-For questions or collaboration, open an issue or contact the repo owner.
+* `/docs`: Contains all detailed project documentation.
+* `/services`: Contains Docker Compose files and configurations for each self-hosted service.
+* `/scripts`: Contains standalone scripts, such as the fan controller for the HP server.
