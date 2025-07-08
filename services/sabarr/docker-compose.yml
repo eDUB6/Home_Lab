@@ -1,0 +1,207 @@
+networks:
+  talltrees:
+    external: true
+
+services:
+####TRAEFIK
+  traefik:
+    container_name: traefikarr
+    image: traefik:v2.11
+    restart: unless-stopped
+    networks:
+      - talltrees
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host
+    environment:
+      - CF_DNS_API_TOKEN=tYyQ_Fk3xkR4qm83lq_IN4Z8XM-lOjilbyp-lfpE
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme.json:/acme.json
+    command:
+      - "--log.level=trace"
+      - "--api.dashboard=true"
+      - "--api.debug=true"
+      - "--entryPoints.http.address=:80"
+      - "--entryPoints.https.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedByDefault=false"
+      - "--providers.docker.network=talltrees"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--certificatesResolvers.cloudflare.acme.email=eburhop@hotmail.com"
+      - "--certificatesResolvers.cloudflare.acme.storage=acme.json"
+      - "--certificatesResolvers.cloudflare.acme.dnsChallenge.provider=cloudflare"
+      - "--certificatesResolvers.cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=talltrees"
+      - "traefik.http.routers.traefik.entrypoints=http" 
+      - "traefik.http.routers.traefik.rule=Host(`traefikarr.local.talltrees.online`)" 
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect" 
+      - "traefik.http.routers.traefik-secure.entrypoints=https" 
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefikarr.local.talltrees.online`)" 
+      - "traefik.http.routers.traefik-secure.tls=true" 
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare" 
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=local.talltrees.online" 
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.local.talltrees.online" 
+      - "traefik.http.routers.traefik-secure.service=api@internal" 
+      # - "traefik.http.routers.traefik-dashboard.rule=Host(`192.168.1.243`)"
+      # - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # - "traefik.http.routers.traefik-dashboard.entrypoints=http"
+      # - "traefik.http.services.traefik-dashboard.loadbalancer.server.port=8080"
+        
+  ####GLUETUN
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    hostname: gluetun
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8888:8888 # Tinyproxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
+      - 9090:9090 # sabnzbd
+    networks:
+      - talltrees
+    volumes:
+      - ./gluetun:/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=nordvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=oDzIsnHw8f5SFh92x8a2NynQ5lvKkLjlsGJ0/OXaLEY=
+      - SERVER_HOSTNAMES= us8798.nordvpn.com
+      - TZ=America/Detroit
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.docker.network=talltrees"  
+    #   - "traefik.http.routers.sabnzbd.rule=Host(`sabnzbd.local.talltrees.online`)"
+    #   - "traefik.http.routers.sabnzbd.entrypoints=websecure"
+    #   - "traefik.http.routers.sabnzbd.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+
+####SABNZBD      
+  sabnzbd:
+    container_name: sabnzbd
+    image: linuxserver/sabnzbd:latest
+    restart: always
+    network_mode: "service:gluetun"
+    # networks:
+    #   - talltrees
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Detroit
+    # ports:
+    #   - 8080:8080  
+    volumes:
+      - ./sabnzbd/config:/config
+      - /home/edub/Downloads:/Downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sabnzbd.entrypoints=http"
+      - "traefik.http.routers.sabnzbd.rule=Host(`sabnzbd.local.talltrees.online`)"
+      - "traefik.http.middlewares.sabnzbd-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-https-redirect"
+      - "traefik.http.routers.sabnzbd-secure.entrypoints=https"
+      - "traefik.http.routers.sabnzbd-secure.rule=Host(`sabnzbd.local.talltrees.online`)"
+      - "traefik.http.routers.sabnzbd-secure.tls=true"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+      - "traefik.docker.network=talltrees"
+
+####SONARR
+  sonarr:
+    container_name: sonarr
+    image: linuxserver/sonarr:latest
+    restart: unless-stopped
+    networks:
+      - talltrees
+    ports:
+      - 8989:8989
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Detroit
+    volumes:
+      - ./sonarr/config:/config
+      - /home/edub/mnt/media/TV:/TV 
+      - /home/edub/Downloads:/Downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.entrypoints=http"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.local.talltrees.online`)"
+      - "traefik.http.middlewares.sonarr-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.sonarr.middlewares=sonarr-https-redirect"
+      - "traefik.http.routers.sonarr-secure.entrypoints=https"
+      - "traefik.http.routers.sonarr-secure.rule=Host(`sonarr.local.talltrees.online`)"
+      - "traefik.http.routers.sonarr-secure.tls=true"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      - "traefik.docker.network=talltrees"
+
+####RADARR
+  radarr:
+    container_name: radarr
+    image: lscr.io/linuxserver/radarr:latest
+    restart: unless-stopped
+    networks:
+      - talltrees
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Detroit
+    volumes:
+      - ./radarr/config:/config
+      - /home/edub//mnt/media/movies:/movies #optional
+      - /home/edub/Downloads:/downloads #optional
+    ports:
+      - 7878:7878
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.entrypoints=http"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.local.talltrees.online`)"
+      - "traefik.http.middlewares.radarr-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.radarr.middlewares=radarr-https-redirect"
+      - "traefik.http.routers.radarr-secure.entrypoints=https"
+      - "traefik.http.routers.radarr-secure.rule=Host(`radarr.local.talltrees.online`)"
+      - "traefik.http.routers.radarr-secure.tls=true"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+      - "traefik.docker.network=talltrees"
+####READARR
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    restart: unless-stopped
+    networks:
+      - talltrees
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Detroit
+    volumes:
+      - ./readarr/config:/config
+      - /home/edub/mnt/media/books:/books #optional
+      - /home/edub/Downloads:/downloads #optional
+    ports:
+      - 8787:8787
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.readarr.entrypoints=http"
+      - "traefik.http.routers.readarr.rule=Host(`readarr.local.talltrees.online`)"
+      - "traefik.http.middlewares.readarr-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.readarr.middlewares=readarr-https-redirect"
+      - "traefik.http.routers.readarr-secure.entrypoints=https"
+      - "traefik.http.routers.readarr-secure.rule=Host(`readarr.local.talltrees.online`)"
+      - "traefik.http.routers.readarr-secure.tls=true"
+      - "traefik.http.services.readarr.loadbalancer.server.port=8787"
+      - "traefik.docker.network=talltrees"
+    
