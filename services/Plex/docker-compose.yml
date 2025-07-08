@@ -21,7 +21,7 @@ services:
       - 443:443
       - 444:444
     environment:
-      - CF_DNS_API_TOKEN=tYyQ_Fk3xkR4qm83lq_IN4Z8XM-lOjilbyp-lfpE
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
