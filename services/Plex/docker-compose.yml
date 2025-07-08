@@ -1,0 +1,151 @@
+networks:
+  talltrees:
+    external: true
+
+services:
+####TRAEFIK
+  traefik:
+    image: traefik:latest
+    container_name: traefex
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - talltrees
+    ports:
+      - 80:80
+      - 81:81
+      - 443:443
+      - 444:444
+    environment:
+      - CF_DNS_API_TOKEN=tYyQ_Fk3xkR4qm83lq_IN4Z8XM-lOjilbyp-lfpE
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme.json:/acme.json
+    command:
+      - "--log.level=trace"
+      - "--api.dashboard=true"
+      - "--api.debug=true"
+      - "--entryPoints.http.address=:80"
+      - "--entryPoints.https.address=:443"
+      - "--entryPoints.http-external.address=:81"
+      - "--entryPoints.https-external.address=:444"
+      - "--providers.docker.exposedByDefault=false"
+      - "--providers.docker.network=talltrees"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--certificatesResolvers.cloudflare.acme.email=eburhop@hotmail.com"
+      - "--certificatesResolvers.cloudflare.acme.storage=acme.json"
+      - "--certificatesResolvers.cloudflare.acme.dnsChallenge.provider=cloudflare"
+      - "--certificatesResolvers.cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=talltrees"
+      - "traefik.http.routers.traefik.entrypoints=http" 
+      - "traefik.http.routers.traefik.rule=Host(`traefex.local.talltrees.online`)" 
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect" 
+      - "traefik.http.routers.traefik-secure.entrypoints=https" 
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefex.local.talltrees.online`)" 
+      - "traefik.http.routers.traefik-secure.tls=true" 
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare" 
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=external.talltrees.online" 
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.external.talltrees.online"
+      - "traefik.http.routers.traefik-secure.tls.domains[1].main=local.talltrees.online" 
+      - "traefik.http.routers.traefik-secure.tls.domains[1].sans=*.local.talltrees.online"
+      - "traefik.http.routers.traefik-secure.service=api@internal" 
+        
+####PLEX
+  plex:
+    image: plexinc/pms-docker:latest
+    restart: unless-stopped
+    container_name: plex
+    networks:
+      - talltrees
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PLEX_CLAIM=claim-L_RCGzVU5qCgGDExVPsd
+      - ADVERTISE_IP=http://192.168.1.243:32400/
+    ports:
+      - 32400:32400/tcp
+      - 8324:8324/tcp
+      - 32469:32469/tcp
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp  
+    volumes:
+      - ./plex/config:/config
+      - /home/edub/media:/media
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=talltrees"
+      #external
+      - "traefik.http.routers.plex.entrypoints=http-external"
+      - "traefik.http.routers.plex.rule=Host(`plex.external.talltrees.online`)"
+      - "traefik.http.middlewares.plex-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.plex.middlewares=plex-https-redirect"
+      - "traefik.http.routers.plex-secure.entrypoints=https-external"
+      - "traefik.http.routers.plex-secure.rule=Host(`plex.external.talltrees.online`)"
+      - "traefik.http.routers.plex-secure.tls=true"
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      #local
+      - "traefik.http.routers.plexlocal.entrypoints=http-local"
+      - "traefik.http.routers.plexlocal.rule=Host(`plex.local.talltrees.online`)"
+      - "traefik.http.middlewares.plexlocal-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.plexlocal.middlewares=plexlocal-https-redirect"
+      - "traefik.http.routers.plexlocal-secure.entrypoints=https-local"
+      - "traefik.http.routers.plexlocal-secure.rule=Host(`plex.local.talltrees.online`)"
+      - "traefik.http.routers.plexlocal-secure.tls=true"
+      - "traefik.http.services.plexlocal.loadbalancer.server.port=32400"
+
+
+
+
+
+
+
+      
+
+####OVERSEER
+  overseerr:
+    image: lscr.io/linuxserver/overseerr:latest
+    container_name: overseerr
+    restart: unless-stopped
+    networks:
+      - talltrees
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Detroit
+    volumes:
+      - ./overseerr/config:/config
+    ports:
+      - 5055:5055
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.overseerr.entrypoints=http-external"
+      - "traefik.http.routers.overseerr.rule=Host(`overseerr.external.talltrees.online`)"
+      - "traefik.http.middlewares.overseerr-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.overseerr.middlewares=overseerr-https-redirect"
+      - "traefik.http.routers.overseerr-secure.entrypoints=https-external"
+      - "traefik.http.routers.overseerr-secure.rule=Host(`overseerr.external.talltrees.online`)"
+      - "traefik.http.routers.overseerr-secure.tls=true"
+      - "traefik.http.services.overseerr.loadbalancer.server.port=5055"
+      - "traefik.docker.network=talltrees"
+      #local
+      - "traefik.http.routers.overseerrlocal.entrypoints=http-local"
+      - "traefik.http.routers.overseerrlocal.rule=Host(`overseerr.local.talltrees.online`)"
+      - "traefik.http.middlewares.overseerrlocal-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.overseerrlocal.middlewares=overseerrlocal-https-redirect"
+      - "traefik.http.routers.overseerrlocal-secure.entrypoints=https-local"
+      - "traefik.http.routers.overseerrlocal-secure.rule=Host(`overseerr.local.talltrees.online`)"
+      - "traefik.http.routers.overseerrlocal-secure.tls=true"
+      - "traefik.http.services.overseerrlocal.loadbalancer.server.port=32400"
